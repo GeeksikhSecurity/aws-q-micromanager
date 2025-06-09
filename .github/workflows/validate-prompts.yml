@@ -1,0 +1,41 @@
+name: Validate Prompts
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'prompts/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'prompts/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check Markdown Syntax
+        run: |
+          sudo npm install -g markdownlint-cli
+          markdownlint prompts/*.md
+      
+      - name: Check for Sensitive Information
+        run: |
+          ! grep -r --include="*.md" -E "(password|secret|token|key|credential)" prompts/
+      
+      - name: Validate File Structure
+        run: |
+          for file in prompts/*.md; do
+            if [ ! -f "$file" ]; then
+              echo "Error: $file is not a valid file"
+              exit 1
+            fi
+            
+            # Check if file has a title
+            if ! head -1 "$file" | grep -q "^# "; then
+              echo "Error: $file does not start with a title (# Title)"
+              exit 1
+            fi
+          done

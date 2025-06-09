@@ -2,6 +2,8 @@
 
 A collection of specialized AI modes for AWS Q Developer to optimize AI assistance through intelligent task orchestration.
 
+Inspired by [RooCodeMicroManager](https://github.com/adamwlarson/RooCodeMicroManager) by Adam Larson ([@adamwlarson](https://github.com/adamwlarson)).
+
 ## Motivation
 
 In the evolving landscape of AI development, where free access to powerful models is becoming increasingly limited, cost optimization becomes crucial. AWS Q MicroManager addresses this challenge through intelligent task orchestration:

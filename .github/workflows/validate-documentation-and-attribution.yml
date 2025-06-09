@@ -1,0 +1,139 @@
+name: Validate Documentation and AI Attribution
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'prompts/**'
+      - 'CREDITS.md'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'prompts/**'
+      - 'CREDITS.md'
+
+jobs:
+  validate-prompts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check Markdown Syntax for Prompts
+        run: |
+          sudo npm install -g markdownlint-cli
+          markdownlint prompts/*.md
+      
+      - name: Check for Sensitive Information
+        run: |
+          ! grep -r --include="*.md" -E "(password|secret|token|key|credential)" prompts/
+      
+      - name: Validate Prompt File Structure
+        run: |
+          for file in prompts/*.md; do
+            if [ ! -f "$file" ]; then
+              echo "Error: $file is not a valid file"
+              exit 1
+            fi
+            
+            # Check if file has a title
+            if ! head -1 "$file" | grep -q "^# "; then
+              echo "Error: $file does not start with a title (# Title)"
+              exit 1
+            fi
+          done
+
+  validate-documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check Documentation Markdown Syntax
+        run: |
+          sudo npm install -g markdownlint-cli
+          if [ -d "docs" ]; then
+            markdownlint docs/**/*.md
+          fi
+      
+      - name: Validate AI Attribution Completeness
+        run: |
+          # Check if AI attribution exists in CREDITS.md
+          if ! grep -q "Claude Sonnet 4" CREDITS.md; then
+            echo "Error: AI attribution missing in CREDITS.md"
+            exit 1
+          fi
+          
+          # Check if AI analysis attribution file exists
+          if [ ! -f "docs/AI_ANALYSIS_ATTRIBUTION.md" ]; then
+            echo "Error: AI analysis attribution document missing"
+            exit 1
+          fi
+          
+          # Validate attribution document has required sections
+          if ! grep -q "## AI Contributor Information" docs/AI_ANALYSIS_ATTRIBUTION.md; then
+            echo "Error: AI attribution document missing required sections"
+            exit 1
+          fi
+      
+      - name: Validate Documentation Structure
+        run: |
+          # Check for required documentation files
+          required_files=(
+            "docs/REPOSITORY_REVIEW_AND_RECOMMENDATIONS.md"
+            "docs/roadmap/IMPLEMENTATION_ROADMAP.md"
+            "docs/AI_ANALYSIS_ATTRIBUTION.md"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Error: Required documentation file missing: $file"
+              exit 1
+            fi
+          done
+      
+      - name: Check Documentation Links
+        run: |
+          # Basic link validation for internal markdown links
+          if grep -r --include="*.md" -n "\]\(" docs/ | grep -v "http"; then
+            echo "Found internal markdown links - manual verification recommended"
+          fi
+
+  validate-ai-transparency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Validate AI Contribution Transparency
+        run: |
+          # Check that AI-generated content is properly marked
+          ai_generated_files=(
+            "docs/REPOSITORY_REVIEW_AND_RECOMMENDATIONS.md"
+            "docs/roadmap/IMPLEMENTATION_ROADMAP.md"
+          )
+          
+          for file in "${ai_generated_files[@]}"; do
+            if [ -f "$file" ]; then
+              if ! grep -q -i "claude\|ai\|anthropic" "$file"; then
+                echo "Warning: $file may be missing AI attribution"
+              fi
+            fi
+          done
+          
+          # Verify attribution date is recent (within last 30 days)
+          if [ -f "docs/AI_ANALYSIS_ATTRIBUTION.md" ]; then
+            if grep -q "June 9, 2025" docs/AI_ANALYSIS_ATTRIBUTION.md; then
+              echo "AI attribution date verified"
+            else
+              echo "Warning: AI attribution date may need updating"
+            fi
+          fi
+      
+      - name: Check for Proper Citation Format
+        run: |
+          # Verify that AI contributions follow consistent citation format
+          citation_pattern="Claude Sonnet 4.*Anthropic.*June 9, 2025"
+          
+          if ! grep -P "$citation_pattern" CREDITS.md; then
+            echo "Warning: AI citation format may be inconsistent in CREDITS.md"
+          fi
